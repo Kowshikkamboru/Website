@@ -164,7 +164,7 @@ export default function App() {
               isDone={!!completed[q.id]}
               isExpanded={expandedId === q.id}
               globalLang={globalLang}
-              customCode={customCodes[q.id] || ''}
+              customCode={customCodes[q.id]}
               pyodideReady={pyodideReady}
               onToggleDone={() => toggleCompleted(q.id)}
               onToggleExpand={() => setExpandedId(expandedId === q.id ? null : q.id)}
@@ -289,7 +289,7 @@ function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideRe
               <textarea
                 style={{ width: '100%', minHeight: 180, background: 'transparent', color: '#e2e8f0', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, border: 'none', outline: 'none', padding: '16px', resize: 'vertical', lineHeight: 1.7, caretColor: '#a78bfa' }}
                 placeholder="✏️  Write your own solution here... auto-saves to browser!"
-                value={customCode} onChange={e => onCodeChange(e.target.value)} spellCheck={false}
+                value={customCode || ''} onChange={e => onCodeChange(e.target.value)} spellCheck={false}
                 onKeyDown={(e) => {
                   if (e.key === 'Tab') {
                     e.preventDefault();
@@ -307,14 +307,14 @@ function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideRe
                 {/* Code Editor */}
                 <div style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
                   <textarea
-                    value={customCode || runCode}
+                    value={customCode !== undefined ? customCode : runCode}
                     onChange={e => onCodeChange(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Tab') {
                         e.preventDefault();
                         const start = e.target.selectionStart;
                         const end = e.target.selectionEnd;
-                        const currentVal = customCode || runCode;
+                        const currentVal = customCode !== undefined ? customCode : runCode;
                         onCodeChange(currentVal.substring(0, start) + "    " + currentVal.substring(end));
                         setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = start + 4; }, 0);
                       }

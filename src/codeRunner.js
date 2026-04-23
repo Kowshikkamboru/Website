@@ -18,11 +18,12 @@ export async function getPyodide() {
 
 export async function runPython(code, stdinLines) {
   const pyodide = await getPyodide();
-  const inputs = stdinLines.split('\n');
+  const inputs = stdinLines.split('\\n');
   pyodide.globals.set('_mock_inputs', pyodide.toPy(inputs));
+  pyodide.globals.set('_user_code', code);
+  
   const wrapped = `
-import sys, io
-_mock_inputs = _mock_inputs
+import sys, io, traceback
 _input_idx = 0
 def input(prompt=''):
     global _input_idx
@@ -31,14 +32,24 @@ def input(prompt=''):
         _input_idx += 1
         return val
     return ''
+
 _out = io.StringIO()
 sys.stdout = _out
-${code}
+_err = None
+
+try:
+    exec(_user_code, globals())
+except BaseException:
+    _err = traceback.format_exc()
+
 sys.stdout = sys.__stdout__
 _result = _out.getvalue()
+if _err:
+    _result += "\\n--- Error ---\\n" + _err
+_result
 `;
-  await pyodide.runPythonAsync(wrapped);
-  return pyodide.globals.get('_result') || '(no output)';
+  const result = await pyodide.runPythonAsync(wrapped);
+  return result || '(no output)';
 }
 
 // C runner via Wandbox API (Free, no auth required)
