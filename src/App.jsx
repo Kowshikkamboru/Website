@@ -10,6 +10,10 @@ const CAT_COLORS = {
   "Searching & Sorting": { bg: "rgba(6,182,212,0.15)",  text: "#22d3ee", border: "rgba(6,182,212,0.3)" },
   "Advanced":            { bg: "rgba(16,185,129,0.15)", text: "#34d399", border: "rgba(16,185,129,0.3)" },
   "Patterns":            { bg: "rgba(249,115,22,0.15)", text: "#fb923c", border: "rgba(249,115,22,0.3)" },
+  "Linked List":         { bg: "rgba(168,85,247,0.15)", text: "#c084fc", border: "rgba(168,85,247,0.3)" },
+  "Stack & Queue":       { bg: "rgba(244,63,94,0.15)",  text: "#fb7185", border: "rgba(244,63,94,0.3)" },
+  "Trees":               { bg: "rgba(34,197,94,0.15)",  text: "#4ade80", border: "rgba(34,197,94,0.3)" },
+  "Graphs":              { bg: "rgba(56,189,248,0.15)", text: "#38bdf8", border: "rgba(56,189,248,0.3)" },
 };
 
 // Load Pyodide once globally
@@ -83,7 +87,7 @@ export default function App() {
                 <Terminal size={20} color="#a78bfa" />
               </div>
               <div>
-                <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }} className="gradient-text">DSA 50 Challenge</h1>
+                <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }} className="gradient-text">DSA 80+ Challenge</h1>
                 <p style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>Infosys & Interview Prep</p>
               </div>
             </div>

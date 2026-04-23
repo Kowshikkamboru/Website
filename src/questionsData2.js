@@ -70,7 +70,7 @@ export const questionsDataPart2 = [
     py: `n = int(input("Enter number of elements: "))\narr = list(map(int, input("Enter elements: ").split()))\ndp = [1]*n\nfor i in range(1,n):\n    for j in range(i):\n        if arr[i]>arr[j]: dp[i]=max(dp[i],dp[j]+1)\nprint("LIS Length:", max(dp))` },
 
   { id: 43, cat: "Advanced", title: "43. Word Break", desc: "Check if string can be segmented into dictionary words.",
-    c: `// Browser C simulation\n#include <stdio.h>\n#include <string.h>\nint main() {\n    char s[]="leetcode";\n    char *dict[]={"leet","code"};\n    int dp[9]={0}; dp[0]=1;\n    for(int i=1;i<=8;i++) for(int j=0;j<i;j++) if(dp[j]){\n        char sub[10]; strncpy(sub,s+j,i-j); sub[i-j]='\\0';\n        for(int k=0;k<2;k++) if(strcmp(sub,dict[k])==0) dp[i]=1;\n    }\n    printf(dp[8]?"True\\n":"False\\n");\n    return 0;\n}`,
+    c: `#include <stdio.h>\n#include <string.h>\nint main() {\n    char s[]="leetcode";\n    char *dict[]={"leet","code"};\n    int dp[9]={0}; dp[0]=1;\n    for(int i=1;i<=8;i++) for(int j=0;j<i;j++) if(dp[j]){\n        char sub[10]; strncpy(sub,s+j,i-j); sub[i-j]='\\0';\n        for(int k=0;k<2;k++) if(strcmp(sub,dict[k])==0) dp[i]=1;\n    }\n    printf(dp[8]?"True\\n":"False\\n");\n    return 0;\n}`,
     py: `s = input("Enter the string: ")\nn = int(input("Number of dictionary words: "))\nwords = set(input("Enter words (space-separated): ").split())\ndp = [False]*(len(s)+1); dp[0]=True\nfor i in range(1,len(s)+1):\n    for j in range(i):\n        if dp[j] and s[j:i] in words: dp[i]=True; break\nprint("Can break:", dp[-1])` },
 
   { id: 44, cat: "Advanced", title: "44. Decode Ways", desc: "Count total combinations to decode a numeric string.",
@@ -102,4 +102,7 @@ export const questionsDataPart2 = [
     py: `n = int(input("Enter number of rows: "))\ntriangle=[]\nfor i in range(n):\n    row=[1]*(i+1)\n    for j in range(1,i): row[j]=triangle[i-1][j-1]+triangle[i-1][j]\n    triangle.append(row)\n    print(row)` },
 ];
 
-export const allQuestions = [...q1to25, ...questionsDataPart2];
+import { newQuestions1 } from './questionsNew1.js';
+import { newQuestions2 } from './questionsNew2.js';
+
+export const allQuestions = [...q1to25, ...questionsDataPart2, ...newQuestions1, ...newQuestions2];
