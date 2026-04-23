@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Code2, Edit3, Terminal, BookOpen, Play, Copy, Check, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Edit3, Terminal, BookOpen, Play, Copy, Check } from 'lucide-react';
 import { allQuestions } from './questionsData2.js';
+import { getPyodide, runPython, runC } from './codeRunner.js';
 
-// Category colors
 const CAT_COLORS = {
   "Arrays":              { bg: "rgba(99,102,241,0.15)", text: "#818cf8", border: "rgba(99,102,241,0.3)" },
   "Strings":             { bg: "rgba(236,72,153,0.15)", text: "#f472b6", border: "rgba(236,72,153,0.3)" },
@@ -16,22 +16,42 @@ const CAT_COLORS = {
   "Graphs":              { bg: "rgba(56,189,248,0.15)", text: "#38bdf8", border: "rgba(56,189,248,0.3)" },
 };
 
-// Load Pyodide once globally
-let pyodideInstance = null;
-let pyodideLoading = false;
-let pyodideCallbacks = [];
+// Add line numbers to code
+function CodeWithLines({ code, language }) {
+  const lines = code.split('\n');
+  return (
+    <div style={{ display: 'flex', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.75 }}>
+      <div style={{ textAlign: 'right', padding: '16px 0 16px 16px', color: '#374151', userSelect: 'none', minWidth: 36, flexShrink: 0 }}>
+        {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
+      </div>
+      <pre style={{ margin: 0, padding: 16, overflow: 'auto', flex: 1, color: '#e2e8f0', whiteSpace: 'pre' }}>
+        {lines.map((line, i) => (
+          <div key={i}>{highlightLine(line, language)}</div>
+        ))}
+      </pre>
+    </div>
+  );
+}
 
-async function getPyodide() {
-  if (pyodideInstance) return pyodideInstance;
-  if (pyodideLoading) {
-    return new Promise((res) => pyodideCallbacks.push(res));
+// Simple syntax highlighting
+function highlightLine(line, lang) {
+  if (lang === 'py') {
+    // Keywords
+    const pyKw = /\b(def|return|for|while|if|elif|else|import|from|in|not|and|or|is|None|True|False|break|continue|class|try|except|finally|with|as|yield|lambda|pass|raise|global|print|input|range|len|int|float|str|list|set|dict|map|sum|max|min|sorted|enumerate|zip)\b/g;
+    const parts = [];
+    let last = 0;
+    const strRegex = /(["'])(?:(?=(\\?))\2.)*?\1|#.*/g;
+    let m;
+    const strs = [];
+    while ((m = strRegex.exec(line)) !== null) {
+      strs.push({ start: m.index, end: m.index + m[0].length, text: m[0], isComment: m[0].startsWith('#') });
+    }
+    // Simple approach: return colored spans
+    let result = line;
+    // We'll just return the line as-is for performance since full highlighting is complex
+    return <span>{line}</span>;
   }
-  pyodideLoading = true;
-  const { loadPyodide } = await import('https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.mjs');
-  pyodideInstance = await loadPyodide();
-  pyodideCallbacks.forEach(cb => cb(pyodideInstance));
-  pyodideCallbacks = [];
-  return pyodideInstance;
+  return <span>{line}</span>;
 }
 
 export default function App() {
@@ -41,7 +61,7 @@ export default function App() {
   const [expandedId, setExpandedId] = useState(null);
   const [filterCat, setFilterCat] = useState('All');
   const [pyodideReady, setPyodideReady] = useState(false);
-  const [pyodideStatus, setPyodideStatus] = useState('idle'); // idle | loading | ready | error
+  const [pyodideStatus, setPyodideStatus] = useState('idle');
 
   useEffect(() => {
     const c = localStorage.getItem('dsa_completed');
@@ -50,7 +70,6 @@ export default function App() {
     if (cc) setCustomCodes(JSON.parse(cc));
   }, []);
 
-  // Preload Pyodide in background
   useEffect(() => {
     setPyodideStatus('loading');
     getPyodide()
@@ -77,11 +96,9 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <header className="header-glass" style={{ position: 'sticky', top: 0, zIndex: 50, padding: '14px 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ background: 'rgba(139,92,246,0.2)', padding: 8, borderRadius: 10, border: '1px solid rgba(139,92,246,0.3)' }}>
                 <Terminal size={20} color="#a78bfa" />
@@ -92,7 +109,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Progress */}
             <div style={{ flex: 1, maxWidth: 320, minWidth: 180 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5, color: '#94a3b8' }}>
                 <span>{doneCount}/{allQuestions.length} solved</span>
@@ -103,7 +119,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Lang + Pyodide status */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', fontSize: 13 }}>
                 <span style={{ color: '#64748b' }}>Lang:</span>
@@ -120,12 +135,11 @@ export default function App() {
                 display: 'flex', alignItems: 'center', gap: 5
               }}>
                 {pyodideStatus === 'loading' && <span className="spinner" />}
-                {pyodideStatus === 'ready' ? '🐍 Python Ready' : pyodideStatus === 'loading' ? 'Loading...' : '⚠ Failed'}
+                {pyodideStatus === 'ready' ? '🐍 Ready' : pyodideStatus === 'loading' ? 'Loading...' : '⚠ Failed'}
               </div>
             </div>
           </div>
 
-          {/* Category Filter */}
           <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
             {cats.map(cat => (
               <button key={cat} onClick={() => setFilterCat(cat)} style={{
@@ -142,13 +156,11 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main */}
       <main style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px 80px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {visible.map(q => (
             <QuestionItem
-              key={q.id}
-              q={q}
+              key={q.id} q={q}
               isDone={!!completed[q.id]}
               isExpanded={expandedId === q.id}
               globalLang={globalLang}
@@ -166,10 +178,11 @@ export default function App() {
 }
 
 function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideReady, onToggleDone, onToggleExpand, onCodeChange }) {
-  const [tab, setTab] = useState('ref'); // ref | custom | run
+  const [tab, setTab] = useState('ref');
   const [localLang, setLocalLang] = useState(globalLang);
+  const [runLang, setRunLang] = useState('py'); // language for the Run tab
   const [userInput, setUserInput] = useState('');
-  const [output, setOutput] = useState(null); // null | { text, isError }
+  const [output, setOutput] = useState(null);
   const [running, setRunning] = useState(false);
   const [copied, setCopied] = useState(false);
   const cat = CAT_COLORS[q.cat] || CAT_COLORS["Arrays"];
@@ -177,6 +190,7 @@ function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideRe
   useEffect(() => { setLocalLang(globalLang); }, [globalLang]);
 
   const currentCode = localLang === 'py' ? q.py : q.c;
+  const runCode = runLang === 'py' ? q.py : q.c;
 
   const copyCode = () => {
     navigator.clipboard.writeText(currentCode);
@@ -184,106 +198,51 @@ function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideRe
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const runPython = useCallback(async () => {
+  const handleRun = useCallback(async () => {
     setRunning(true);
     setOutput(null);
     try {
-      const pyodide = await getPyodide();
-      const lines = q.py;
-      const inputs = userInput.split('\n');
-      let inputIdx = 0;
-
-      // Mock input() function
-      pyodide.globals.set('_mock_inputs', pyodide.toPy(inputs));
-      const wrappedCode = `
-import sys
-_mock_inputs = _mock_inputs
-_input_idx = 0
-
-def input(prompt=''):
-    global _input_idx
-    if _input_idx < len(_mock_inputs):
-        val = _mock_inputs[_input_idx]
-        _input_idx += 1
-        return val
-    return ''
-
-import io
-_out = io.StringIO()
-sys.stdout = _out
-
-${lines}
-
-sys.stdout = sys.__stdout__
-_result = _out.getvalue()
-`;
-      await pyodide.runPythonAsync(wrappedCode);
-      const result = pyodide.globals.get('_result');
-      setOutput({ text: result || '(no output)', isError: false });
+      let result;
+      if (runLang === 'py') {
+        result = await runPython(q.py, userInput);
+      } else {
+        result = await runC(q.c, userInput);
+      }
+      setOutput({ text: result, isError: false });
     } catch (err) {
       setOutput({ text: String(err), isError: true });
     } finally {
       setRunning(false);
     }
-  }, [q.py, userInput]);
+  }, [q.py, q.c, runLang, userInput]);
+
+  const canRun = runLang === 'py' ? pyodideReady : true;
 
   return (
-    <div
-      className={`glass-card ${isExpanded ? 'expanded' : ''}`}
-      style={{ overflow: 'hidden' }}
-    >
+    <div className={`glass-card ${isExpanded ? 'expanded' : ''}`} style={{ overflow: 'hidden' }}>
       {/* Header row */}
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer', userSelect: 'none' }}
-        onClick={onToggleExpand}
-      >
-        {/* Done toggle */}
-        <button
-          onClick={e => { e.stopPropagation(); onToggleDone(); }}
-          className={isDone ? 'badge-done' : 'badge-pending'}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}
-        >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', cursor: 'pointer', userSelect: 'none' }} onClick={onToggleExpand}>
+        <button onClick={e => { e.stopPropagation(); onToggleDone(); }} className={isDone ? 'badge-done' : 'badge-pending'} style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}>
           {isDone ? <CheckCircle2 size={22} /> : <Circle size={22} />}
         </button>
-
-        {/* Number + title */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h3 style={{
-              fontSize: 15, fontWeight: 600,
-              color: isDone ? '#475569' : '#e2e8f0',
-              textDecoration: isDone ? 'line-through' : 'none',
-              transition: 'all 0.2s'
-            }}>
-              {q.title}
-            </h3>
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999,
-              background: cat.bg, color: cat.text, border: `1px solid ${cat.border}`,
-              letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0
-            }}>
-              {q.cat}
-            </span>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: isDone ? '#475569' : '#e2e8f0', textDecoration: isDone ? 'line-through' : 'none', transition: 'all 0.2s' }}>{q.title}</h3>
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: cat.bg, color: cat.text, border: `1px solid ${cat.border}`, letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>{q.cat}</span>
           </div>
         </div>
-
         {isExpanded ? <ChevronUp size={16} color="#64748b" /> : <ChevronDown size={16} color="#64748b" />}
       </div>
 
       {/* Expanded body */}
       {isExpanded && (
         <div className="accordion-body" style={{ borderTop: '1px solid rgba(139,92,246,0.15)' }}>
-          {/* Description */}
           <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
             <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{q.desc}</p>
           </div>
 
-          {/* Tabs bar */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 12px', background: 'rgba(0,0,0,0.3)',
-            borderBottom: '1px solid rgba(139,92,246,0.12)', flexWrap: 'wrap', gap: 6
-          }}>
+          {/* Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(139,92,246,0.12)', flexWrap: 'wrap', gap: 6 }}>
             <div style={{ display: 'flex', gap: 4 }}>
               <button className={`tab-btn ${tab === 'ref' ? 'active-ref' : 'inactive'}`} onClick={() => setTab('ref')}>
                 <BookOpen size={13} /> Ref Solution
@@ -291,8 +250,8 @@ _result = _out.getvalue()
               <button className={`tab-btn ${tab === 'custom' ? 'active-custom' : 'inactive'}`} onClick={() => setTab('custom')}>
                 <Edit3 size={13} /> My Code
               </button>
-              <button className={`tab-btn ${tab === 'run' ? 'active-run' : 'inactive'}`} onClick={() => { setTab('run'); }}>
-                <Play size={13} /> Run Python
+              <button className={`tab-btn ${tab === 'run' ? 'active-run' : 'inactive'}`} onClick={() => setTab('run')}>
+                <Play size={13} /> ▶ Run Code
               </button>
             </div>
 
@@ -302,84 +261,118 @@ _result = _out.getvalue()
                   <option value="py">Python</option>
                   <option value="c">C</option>
                 </select>
-                <button onClick={copyCode} style={{
-                  display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
-                  borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)',
-                  background: copied ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
-                  color: copied ? '#34d399' : '#64748b', fontSize: 12, cursor: 'pointer', transition: 'all 0.2s'
-                }}>
+                <button onClick={copyCode} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: copied ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: copied ? '#34d399' : '#64748b', fontSize: 12, cursor: 'pointer', transition: 'all 0.2s' }}>
                   {copied ? <Check size={12} /> : <Copy size={12} />}
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
             )}
+
+            {tab === 'run' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: '#64748b' }}>Run as:</span>
+                <select className="lang-select" value={runLang} onChange={e => setRunLang(e.target.value)}>
+                  <option value="py">🐍 Python</option>
+                  <option value="c">⚙️ C</option>
+                </select>
+              </div>
+            )}
           </div>
 
-          {/* Content area */}
+          {/* Content */}
           <div style={{ background: '#080d1a' }}>
             {tab === 'ref' && (
-              <pre className="code-block" style={{ margin: 0 }}>
-                <code>{currentCode}</code>
-              </pre>
+              <CodeWithLines code={currentCode} language={localLang} />
             )}
 
             {tab === 'custom' && (
               <textarea
-                style={{
-                  width: '100%', minHeight: 180, background: 'transparent', color: '#e2e8f0',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 13, border: 'none',
-                  outline: 'none', padding: '16px', resize: 'vertical', lineHeight: 1.7,
-                  caretColor: '#a78bfa'
-                }}
+                style={{ width: '100%', minHeight: 180, background: 'transparent', color: '#e2e8f0', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, border: 'none', outline: 'none', padding: '16px', resize: 'vertical', lineHeight: 1.7, caretColor: '#a78bfa' }}
                 placeholder="✏️  Write your own solution here... auto-saves to browser!"
-                value={customCode}
-                onChange={e => onCodeChange(e.target.value)}
-                spellCheck={false}
+                value={customCode} onChange={e => onCodeChange(e.target.value)} spellCheck={false}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = e.target.selectionStart;
+                    const end = e.target.selectionEnd;
+                    onCodeChange(customCode.substring(0, start) + "    " + customCode.substring(end));
+                    setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = start + 4; }, 0);
+                  }
+                }}
               />
             )}
 
             {tab === 'run' && (
               <div>
-                {/* Python code preview */}
-                <pre className="code-block" style={{ margin: 0, borderBottom: '1px solid rgba(139,92,246,0.1)', fontSize: 12, maxHeight: 200, overflow: 'auto' }}>
-                  <code>{q.py}</code>
-                </pre>
+                {/* Code Editor */}
+                <div style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
+                  <textarea
+                    value={customCode || runCode}
+                    onChange={e => onCodeChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const start = e.target.selectionStart;
+                        const end = e.target.selectionEnd;
+                        const currentVal = customCode || runCode;
+                        onCodeChange(currentVal.substring(0, start) + "    " + currentVal.substring(end));
+                        setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = start + 4; }, 0);
+                      }
+                    }}
+                    spellCheck={false}
+                    style={{ width: '100%', minHeight: 220, background: '#0a1020', color: '#e2e8f0', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, border: 'none', outline: 'none', padding: '16px', resize: 'vertical', lineHeight: 1.7, caretColor: '#a78bfa' }}
+                  />
+                </div>
 
-                {/* Input area */}
+                {/* Input */}
                 <div style={{ padding: '10px 16px 0', background: '#0a1020' }}>
                   <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
                     📥 stdin (one value per line)
                   </label>
                   <textarea
-                    className="run-input"
-                    placeholder={"Enter input values line by line...\ne.g.:\n5\n1 5 3 9 2"}
-                    value={userInput}
-                    onChange={e => setUserInput(e.target.value)}
-                    style={{ borderRadius: 8, resize: 'vertical', minHeight: 90, width: '100%', background: '#060912', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', color: '#e2e8f0', fontFamily: "'JetBrains Mono',monospace", fontSize: 13, padding: '10px 12px' }}
+                    placeholder={"Enter input values...\ne.g.:\n5\n1 5 3 9 2"}
+                    value={userInput} onChange={e => setUserInput(e.target.value)}
+                    style={{ borderRadius: 8, resize: 'vertical', minHeight: 80, width: '100%', background: '#060912', border: '1px solid rgba(139,92,246,0.2)', outline: 'none', color: '#e2e8f0', fontFamily: "'JetBrains Mono',monospace", fontSize: 13, padding: '10px 12px', lineHeight: 1.6 }}
                   />
                 </div>
 
-                {/* Run button + output */}
+                {/* Run + Output */}
                 <div style={{ padding: '10px 16px 16px', background: '#0a1020' }}>
-                  <button
-                    className="run-btn"
-                    disabled={running || !pyodideReady}
-                    onClick={runPython}
-                    style={{ marginBottom: 10 }}
-                  >
-                    {running ? <><span className="spinner" /> Running...</> : <><Play size={13} /> Run Code</>}
-                  </button>
-
-                  {!pyodideReady && (
-                    <p style={{ fontSize: 11, color: '#fbbf24', marginBottom: 8 }}>⏳ Python engine loading... please wait.</p>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <button className="run-btn" disabled={running || !canRun} onClick={() => {
+                      setRunning(true);
+                      setOutput(null);
+                      const codeToRun = customCode || runCode;
+                      if (runLang === 'py') {
+                        runPython(codeToRun, userInput).then(res => {
+                          setOutput({ text: res, isError: false });
+                        }).catch(err => {
+                          setOutput({ text: String(err), isError: true });
+                        }).finally(() => setRunning(false));
+                      } else {
+                        runC(codeToRun, userInput).then(res => {
+                          setOutput({ text: res, isError: false });
+                        }).catch(err => {
+                          setOutput({ text: String(err), isError: true });
+                        }).finally(() => setRunning(false));
+                      }
+                    }}>
+                      {running ? <><span className="spinner" /> Running...</> : <><Play size={13} /> {runLang === 'py' ? 'Run Python' : 'Compile & Run C'}</>}
+                    </button>
+                    {runLang === 'py' && !pyodideReady && (
+                      <span style={{ fontSize: 11, color: '#fbbf24' }}>⏳ Python engine loading...</span>
+                    )}
+                    {runLang === 'c' && (
+                      <span style={{ fontSize: 11, color: '#22d3ee' }}>⚙️ Compiled via Piston API</span>
+                    )}
+                  </div>
 
                   <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(139,92,246,0.15)' }}>
                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 12px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
                       📤 Output
                     </div>
                     <div className={`output-block ${output ? (output.isError ? 'output-error' : 'output-success') : 'output-idle'}`}>
-                      {output ? output.text : 'Output will appear here after running...'}
+                      {output ? output.text : 'Click "Run" to see output...'}
                     </div>
                   </div>
                 </div>
