@@ -57,7 +57,7 @@ function highlightLine(line, lang) {
 export default function App() {
   const [completed, setCompleted] = useState({});
   const [customCodes, setCustomCodes] = useState({});
-  const [globalLang, setGlobalLang] = useState('py');
+  const [globalLang, setGlobalLang] = useState('c');
   const [expandedId, setExpandedId] = useState(null);
   const [filterCat, setFilterCat] = useState('All');
   const [pyodideReady, setPyodideReady] = useState(false);
@@ -180,7 +180,7 @@ export default function App() {
 function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideReady, onToggleDone, onToggleExpand, onCodeChange }) {
   const [tab, setTab] = useState('ref');
   const [localLang, setLocalLang] = useState(globalLang);
-  const [runLang, setRunLang] = useState('py'); // language for the Run tab
+  const [runLang, setRunLang] = useState('c'); // language for the Run tab
   const [userInput, setUserInput] = useState('');
   const [output, setOutput] = useState(null);
   const [running, setRunning] = useState(false);
