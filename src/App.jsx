@@ -35,23 +35,128 @@ function CodeWithLines({ code, language }) {
 
 // Simple syntax highlighting
 function highlightLine(line, lang) {
-  if (lang === 'py') {
-    // Keywords
-    const pyKw = /\b(def|return|for|while|if|elif|else|import|from|in|not|and|or|is|None|True|False|break|continue|class|try|except|finally|with|as|yield|lambda|pass|raise|global|print|input|range|len|int|float|str|list|set|dict|map|sum|max|min|sorted|enumerate|zip)\b/g;
-    const parts = [];
-    let last = 0;
-    const strRegex = /(["'])(?:(?=(\\?))\2.)*?\1|#.*/g;
-    let m;
-    const strs = [];
-    while ((m = strRegex.exec(line)) !== null) {
-      strs.push({ start: m.index, end: m.index + m[0].length, text: m[0], isComment: m[0].startsWith('#') });
+  const styles = {
+    keyword: { color: '#a78bfa', fontWeight: 600 },
+    type: { color: '#c084fc', fontWeight: 600 },
+    builtin: { color: '#38bdf8' },
+    func: { color: '#fbbf24' },
+    operator: { color: '#f472b6' },
+    number: { color: '#f59e0b' },
+    string: { color: '#34d399' },
+    comment: { color: '#64748b', fontStyle: 'italic' },
+    preproc: { color: '#f472b6' },
+    plain: { color: '#e2e8f0' },
+  };
+
+  const pyKeywords = new Set(['def','return','for','while','if','elif','else','import','from','in','not','and','or','is','None','True','False','break','continue','class','try','except','finally','with','as','yield','lambda','pass','raise','global','assert','async','await','del']);
+  const pyBuiltins = new Set(['print','input','len','range','int','float','str','list','set','dict','tuple','map','sum','max','min','sorted','enumerate','zip','abs','any','all','type']);
+
+  const cKeywords = new Set(['if','else','for','while','do','return','switch','case','break','continue','struct','union','typedef','enum','sizeof','static','const','volatile','extern','register','goto','auto','inline']);
+  const cTypes = new Set(['int','char','float','double','long','short','signed','unsigned','void','size_t']);
+  const cBuiltins = new Set(['printf','scanf','malloc','calloc','realloc','free','strlen','strcpy','strcmp','fgets','puts','gets']);
+  const operators = new Set(['=','+','-','*','/','%','==','!=','<=','>=','<','>','&&','||','!','&','|','^','~','<<','>>','+=','-=','*=','/=','%=']);
+
+  function isInRanges(pos, ranges) {
+    for (let r of ranges) {
+      if (pos >= r.start && pos < r.end) return true;
     }
-    // Simple approach: return colored spans
-    let result = line;
-    // We'll just return the line as-is for performance since full highlighting is complex
-    return <span>{line}</span>;
+    return false;
   }
-  return <span>{line}</span>;
+
+  // detect string/char ranges so we don't highlight inside them
+  const stringRanges = [];
+  const strRegex = /(["'`])(?:(?=(\\?))\\2.)*?\\1/g;
+  let m;
+  while ((m = strRegex.exec(line)) !== null) {
+    stringRanges.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
+  }
+
+  // C preprocessor lines
+  if (lang === 'c' && line.trim().startsWith('#')) {
+    return <span style={styles.preproc}>{line}</span>;
+  }
+
+  // find comment start outside of strings
+  let commentIndex = -1;
+  if (lang === 'py') {
+    let idx = line.indexOf('#');
+    while (idx !== -1) {
+      if (!isInRanges(idx, stringRanges)) { commentIndex = idx; break; }
+      idx = line.indexOf('#', idx + 1);
+    }
+  } else if (lang === 'c') {
+    let idx = line.indexOf('//');
+    while (idx !== -1) {
+      if (!isInRanges(idx, stringRanges)) { commentIndex = idx; break; }
+      idx = line.indexOf('//', idx + 2);
+    }
+  }
+
+  const pre = commentIndex === -1 ? line : line.slice(0, commentIndex);
+  const commentPart = commentIndex === -1 ? null : line.slice(commentIndex);
+
+  // get string ranges that fall inside the pre-comment portion
+  const preStringRanges = stringRanges
+    .filter(r => r.start < pre.length)
+    .map(r => ({ start: r.start, end: Math.min(r.end, pre.length), text: pre.slice(r.start, Math.min(r.end, pre.length)) }));
+
+  let keyCounter = 0;
+  function renderTokens(text) {
+    const nodes = [];
+    const tokenRegex = /[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|==|!=|<=|>=|&&|\|\||<<|>>|\+=|-=|\*=|\/=|%=|[=+\-*/%<>!&|^~(),.;:{}\[\]]|\s+/g;
+    let last = 0;
+    let mm;
+    while ((mm = tokenRegex.exec(text)) !== null) {
+      const s = mm.index;
+      const e = s + mm[0].length;
+      if (s > last) nodes.push(text.slice(last, s));
+      const tok = mm[0];
+      const nextChunk = text.slice(e);
+      const nextNonSpace = nextChunk.match(/^\s*./)?.[0]?.trim();
+
+      if (/^\s+$/.test(tok)) {
+        nodes.push(tok);
+      } else if (/^\d/.test(tok)) {
+        nodes.push(<span key={'n'+(keyCounter++)} style={styles.number}>{tok}</span>);
+      } else if (operators.has(tok)) {
+        nodes.push(<span key={'o'+(keyCounter++)} style={styles.operator}>{tok}</span>);
+      } else {
+        if (lang === 'py' && pyKeywords.has(tok)) {
+          nodes.push(<span key={'k'+(keyCounter++)} style={styles.keyword}>{tok}</span>);
+        } else if (lang === 'py' && pyBuiltins.has(tok)) {
+          nodes.push(<span key={'b'+(keyCounter++)} style={styles.builtin}>{tok}</span>);
+        } else if (lang === 'c' && cKeywords.has(tok)) {
+          nodes.push(<span key={'k'+(keyCounter++)} style={styles.keyword}>{tok}</span>);
+        } else if (lang === 'c' && cTypes.has(tok)) {
+          nodes.push(<span key={'t'+(keyCounter++)} style={styles.type}>{tok}</span>);
+        } else if (lang === 'c' && cBuiltins.has(tok)) {
+          nodes.push(<span key={'b'+(keyCounter++)} style={styles.builtin}>{tok}</span>);
+        } else if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(tok) && nextNonSpace === '(') {
+          nodes.push(<span key={'f'+(keyCounter++)} style={styles.func}>{tok}</span>);
+        } else {
+          nodes.push(<span key={'p'+(keyCounter++)} style={styles.plain}>{tok}</span>);
+        }
+      }
+      last = e;
+    }
+    if (last < text.length) nodes.push(text.slice(last));
+    return nodes;
+  }
+
+  // build final nodes honoring string ranges
+  const nodes = [];
+  let pos = 0;
+  preStringRanges.sort((a,b) => a.start - b.start);
+  for (let r of preStringRanges) {
+    if (r.start > pos) nodes.push(...renderTokens(pre.slice(pos, r.start)));
+    nodes.push(<span key={'s'+(keyCounter++)} style={styles.string}>{r.text}</span>);
+    pos = r.end;
+  }
+  if (pos < pre.length) nodes.push(...renderTokens(pre.slice(pos)));
+
+  if (commentPart) nodes.push(<span key={'c'+(keyCounter++)} style={styles.comment}>{commentPart}</span>);
+
+  return <span style={{ whiteSpace: 'pre' }}>{nodes}</span>;
 }
 
 export default function App() {
