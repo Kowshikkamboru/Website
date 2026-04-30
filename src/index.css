@@ -310,3 +310,11 @@ body {
   font-size: 13px;
   font-weight: 500;
 }
+
+/* Structured problem summary (Problem / Approach / Complexities) */
+.problem-summary { padding: 0; }
+.problem-summary > div { margin-bottom: 8px; }
+.problem-summary .problem-text { margin-left: 6px; color: #cbd5e1; font-size: 15px; line-height: 1.6; }
+.problem-summary .approach-text { margin-left: 6px; color: #cbd5e1; font-size: 14px; line-height: 1.5; }
+.problem-summary .complexities { display: flex; gap: 18px; margin-top: 6px; color: #cbd5e1; font-size: 14px; }
+.problem-summary strong { color: #e2e8f0; }

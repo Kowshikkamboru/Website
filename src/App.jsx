@@ -16,6 +16,65 @@ const CAT_COLORS = {
   "Graphs":              { bg: "rgba(56,189,248,0.15)", text: "#38bdf8", border: "rgba(56,189,248,0.3)" },
 };
 
+function inferApproach(q) {
+  const code = ((q.py || '') + '\n' + (q.c || '')).toLowerCase();
+  const text = ((q.desc || '') + ' ' + (q.title || '')).toLowerCase();
+  const lc = code + ' ' + text;
+
+  if (/binary/.test(lc) && /search/.test(lc)) return 'Binary search on sorted data.';
+  if (/\bsort\b/.test(lc) || /quicksort|mergesort|std::sort|sorted\(/.test(lc)) return 'Sort the input then apply the required logic.';
+  if (/\bdp\b|dynamic programming|memo/.test(lc)) return 'Dynamic programming (build solutions from subproblems and memoize).';
+  if (/\bdfs\b|\bbfs\b|depth-first|breadth-first|recursive\b/.test(lc)) return 'Use recursion / DFS / BFS to traverse tree/graph-like structures.';
+  if (/\bheap\b|priority_queue/.test(lc)) return 'Use a heap / priority queue to track top elements efficiently.';
+  if (/two ?pointer|two-pointer|sliding window/.test(lc)) return 'Two-pointer / sliding-window technique.';
+  if (/stack|queue|linked list/.test(lc)) return 'Use an auxiliary data structure (stack / queue / linked list) to manage elements.';
+  if (/pattern|matrix/.test(lc)) return 'Pattern-based iteration over indices and boundaries.';
+  if (/greedy/.test(lc)) return 'Greedy approach (make locally optimal choices).';
+  if (/for\b.*for\b/.test(code) || /for\s*\(.*for/.test(code)) return 'Nested loops (brute-force comparison / pair checking).';
+
+  return 'Iterate through the input and maintain required state (e.g., running maximum, counts, or indexes).';
+}
+
+function inferComplexities(q, approach) {
+  let time = 'O(n)';
+  let space = 'O(1)';
+  const code = ((q.py || '') + '\n' + (q.c || '')).toLowerCase();
+
+  if (/sort/.test(approach) || /\bsort\b/.test(code) || /quicksort|mergesort|std::sort|sorted\(/.test(code)) time = 'O(n log n)';
+  if (/binary/.test(approach)) time = 'O(log n)';
+  if (/nested/.test(approach) || /for\b.*for/.test(code)) time = 'O(n^2)';
+
+  if (/\bdp\b|dynamic programming|memo/.test(code) || /map\(|unordered_map|set\(|vector<|dict\(|list\(|array\(|new |malloc|calloc/.test(code)) space = 'O(n)';
+  if (/heap|priority_queue/.test(code)) space = 'O(n)';
+
+  return { time, space };
+}
+
+function ProblemSummary({ q }) {
+  const problem = q.desc || q.title || 'No description available.';
+  const approach = inferApproach(q);
+  const { time, space } = inferComplexities(q, approach);
+
+  return (
+    <div className="problem-summary" style={{ padding: 18 }}>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: '#e2e8f0' }}>Problem:</div>
+        <div style={{ fontSize: 15, color: '#cbd5e1', marginLeft: 6 }}>{problem}</div>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: '#e2e8f0' }}>Approach:</div>
+        <div style={{ fontSize: 14, color: '#cbd5e1', marginLeft: 6 }}>{approach}</div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 18, marginTop: 6 }}>
+        <div style={{ fontSize: 14, color: '#cbd5e1' }}><strong style={{ color: '#e2e8f0' }}>Time Complexity:</strong> {time}</div>
+        <div style={{ fontSize: 14, color: '#cbd5e1' }}><strong style={{ color: '#e2e8f0' }}>Space Complexity:</strong> {space}</div>
+      </div>
+    </div>
+  );
+}
+
 // Add line numbers to code
 function CodeWithLines({ code, language }) {
   const lines = code.split('\n');
@@ -343,7 +402,7 @@ function QuestionItem({ q, isDone, isExpanded, globalLang, customCode, pyodideRe
       {isExpanded && (
         <div className="accordion-body" style={{ borderTop: '1px solid rgba(139,92,246,0.15)' }}>
           <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{q.desc}</p>
+            <ProblemSummary q={q} />
           </div>
 
           {/* Tabs */}
